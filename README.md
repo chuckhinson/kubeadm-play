@@ -1,1 +1,1 @@
-README.md
+This project is for learning about kubeadm.
