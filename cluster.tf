@@ -51,70 +51,30 @@ locals {
   private_subnet_cidr_block = cidrsubnet(var.node_vpc_cidr_block,8,2)
 }
 
-resource "aws_vpc" "kubeadm" {
-  cidr_block = var.node_vpc_cidr_block
-  enable_dns_support = true
-  enable_dns_hostnames = true
-  tags = {
-    Name = "kubeadm"
-  }
-}
+module "vpc" {
+  source = "./modules/vpc"
 
-resource "aws_internet_gateway" "kubeadm" {
-  vpc_id = aws_vpc.kubeadm.id
-  tags = {
-    Name = "kubeadm"
-  }
+  vpc_cidr_block = var.node_vpc_cidr_block
+  public_subnet_cidr_block = local.public_subnet_cidr_block
+  resource_name = "kubeadm"
 }
 
 resource "aws_nat_gateway" "kubeadm" {
   allocation_id = aws_eip.kubeadm.id
-  subnet_id     = aws_subnet.kubeadm-public.id
+  subnet_id     = module.vpc.public_subnet_id
 
   tags = {
     Name = "kubeadm"
   }
-
-  # To ensure proper ordering, it is recommended to add an explicit dependency
-  # on the Internet Gateway for the VPC.
-  depends_on = [aws_internet_gateway.kubeadm]
 }
 
 resource "aws_eip" "kubeadm" {
   vpc = true
-  depends_on                = [aws_internet_gateway.kubeadm]
-}
-
-resource "aws_subnet" "kubeadm-public" {
-  vpc_id = aws_vpc.kubeadm.id
-  cidr_block = local.public_subnet_cidr_block
-  tags = {
-    Name = "kubeadm-public"
-  }
-}
-
-resource "aws_route_table" "kubeadm-public" {
-  vpc_id = aws_vpc.kubeadm.id
-
-  tags = {
-    Name = "kubeadm-public"
-  }
-}
-
-resource "aws_route" "kubeadm-public-external" {
-  route_table_id         = aws_route_table.kubeadm-public.id
-  destination_cidr_block = "0.0.0.0/0"
-  gateway_id = aws_internet_gateway.kubeadm.id
-}
-
-resource "aws_route_table_association" "kubeadm-public" {
-  subnet_id      = aws_subnet.kubeadm-public.id
-  route_table_id = aws_route_table.kubeadm-public.id
 }
 
 
 resource "aws_subnet" "kubeadm-private" {
-  vpc_id = aws_vpc.kubeadm.id
+  vpc_id = module.vpc.vpc_id
   cidr_block = local.private_subnet_cidr_block
   tags = {
     Name = "kubeadm-private"
@@ -122,7 +82,7 @@ resource "aws_subnet" "kubeadm-private" {
 }
 
 resource "aws_route_table" "kubeadm-private" {
-  vpc_id = aws_vpc.kubeadm.id
+  vpc_id = module.vpc.vpc_id
 
   tags = {
     Name = "kubeadm-private"
@@ -162,14 +122,14 @@ resource "aws_route" "kubeadm-private-workers" {
 resource "aws_security_group" "kubeadm-internal" {
   name        = "kubeadm-internal"
   description = "Allow cluster inbound traffic"
-  vpc_id      = aws_vpc.kubeadm.id
+  vpc_id      = module.vpc.vpc_id
 
   ingress {
     description      = "Node network"
     protocol         = "-1"
     from_port        = 0
     to_port          = 0
-    cidr_blocks      = [aws_vpc.kubeadm.cidr_block]
+    cidr_blocks      = [var.node_vpc_cidr_block]
   }
   ingress {
     description      = "cluster network"
@@ -197,7 +157,7 @@ resource "aws_security_group" "kubeadm-internal" {
 resource "aws_security_group" "kubeadm-remote" {
   name        = "kubeadm-remote"
   description = "Allow remote access to cluster"
-  vpc_id      = aws_vpc.kubeadm.id
+  vpc_id      = module.vpc.vpc_id
 
   ingress {
     description      = "ssh from mgmt server"
@@ -271,7 +231,7 @@ resource "aws_instance" "kubeadm-jumpbox" {
   key_name = "k8splay"
   private_ip =  cidrhost(local.public_subnet_cidr_block,10)
   source_dest_check = false
-  subnet_id = aws_subnet.kubeadm-public.id
+  subnet_id = module.vpc.public_subnet_id
   vpc_security_group_ids = [aws_security_group.kubeadm-internal.id, aws_security_group.kubeadm-remote.id]
 
   tags = {
@@ -327,7 +287,7 @@ resource "aws_lb" "kubeadm-api" {
   name               = "kubeadm-api"
   internal           = false
   load_balancer_type = "network"
-  subnets            = [aws_subnet.kubeadm-public.id]
+  subnets            = [module.vpc.public_subnet_id]
 }
 
 resource "aws_lb_target_group" "kubeadm-api" {
@@ -335,7 +295,7 @@ resource "aws_lb_target_group" "kubeadm-api" {
   port        = 6443
   protocol    = "TCP"
   target_type = "ip"
-  vpc_id      = aws_vpc.kubeadm.id
+  vpc_id      = module.vpc.vpc_id
 }
 
 resource "aws_lb_target_group_attachment" "kubeadm-api" {
