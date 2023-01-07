@@ -55,3 +55,62 @@ resource "aws_route_table_association" "public" {
   subnet_id      = aws_subnet.public.id
   route_table_id = aws_route_table.public.id
 }
+
+resource "aws_security_group" "main" {
+  name        = "${var.resource_name}-remote"
+  description = "Allow remote access to cluster"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description      = "ssh from mgmt server"
+    protocol         = "tcp"
+    from_port        = "22"
+    to_port          = "22"
+    cidr_blocks      = [var.remote_access_cidr_block]
+  }
+  ingress {
+    description      = "internal https from mgmt server"
+    protocol         = "tcp"
+    from_port        = "6443"
+    to_port          = "6443"
+    cidr_blocks      = [var.remote_access_cidr_block]
+  }
+  ingress {
+    description      = "https from mgmt server"
+    protocol         = "tcp"
+    from_port        = "443"
+    to_port          = "443"
+    cidr_blocks      = [var.remote_access_cidr_block]
+  }
+  ingress {
+    description      = "icmp from mgmt server"
+    protocol         = "icmp"
+    from_port        = "-1"
+    to_port          = "-1"
+    cidr_blocks      = [var.remote_access_cidr_block]
+  }
+
+  tags = {
+    Name = "${var.resource_name}-remote"
+  }
+}
+
+resource "aws_instance" "jumpbox" {
+  ami           = var.jumpbox_ami_id
+  associate_public_ip_address = true
+  ebs_block_device {
+    device_name = "/dev/sda1"
+    volume_size = "50"
+  }
+  instance_type = "t3.micro"
+  key_name = var.instance_keypair_name
+  private_ip =  cidrhost(var.public_subnet_cidr_block,10)
+  source_dest_check = false
+  subnet_id = aws_subnet.public.id
+  vpc_security_group_ids = [aws_security_group.main.id]
+
+  tags = {
+    Name = "${var.resource_name}-jumpbox"
+  }
+}
+

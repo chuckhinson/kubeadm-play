@@ -10,9 +10,24 @@ variable "public_subnet_cidr_block" {
   description = "This is the CIDR block for the public subnet"
 }
 
-
 variable "resource_name" {
   nullable = false
   type = string
   description = "The value to use for resource names"
+}
+
+variable "jumpbox_ami_id" {
+  nullable = false
+  type = string
+  description = "AMI to be used for jumpbox"
+}
+
+variable "instance_keypair_name" {
+  nullable = false
+  type = string
+  description = "The name of the keypair to be used for the jumpbox"
+}
+
+variable "remote_access_cidr_block" {
+  description = "The IP address of the (remote) server that is allowed to access the nodes (as a /32 CIDR block)"
 }

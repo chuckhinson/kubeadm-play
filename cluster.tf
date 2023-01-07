@@ -57,6 +57,10 @@ module "vpc" {
   vpc_cidr_block = var.node_vpc_cidr_block
   public_subnet_cidr_block = local.public_subnet_cidr_block
   resource_name = "kubeadm"
+  jumpbox_ami_id = data.aws_ami.ubuntu_jammy.id
+  instance_keypair_name = "k8splay"
+  remote_access_cidr_block = var.mgmt_server_cidr_block
+
 }
 
 resource "aws_nat_gateway" "kubeadm" {
@@ -154,45 +158,6 @@ resource "aws_security_group" "kubeadm-internal" {
   }
 }
 
-resource "aws_security_group" "kubeadm-remote" {
-  name        = "kubeadm-remote"
-  description = "Allow remote access to cluster"
-  vpc_id      = module.vpc.vpc_id
-
-  ingress {
-    description      = "ssh from mgmt server"
-    protocol         = "tcp"
-    from_port        = "22"
-    to_port          = "22"
-    cidr_blocks      = [var.mgmt_server_cidr_block]
-  }
-  ingress {
-    description      = "internal https from mgmt server"
-    protocol         = "tcp"
-    from_port        = "6443"
-    to_port          = "6443"
-    cidr_blocks      = [var.mgmt_server_cidr_block]
-  }
-  ingress {
-    description      = "https from mgmt server"
-    protocol         = "tcp"
-    from_port        = "443"
-    to_port          = "443"
-    cidr_blocks      = [var.mgmt_server_cidr_block]
-  }
-  ingress {
-    description      = "icmp from mgmt server"
-    protocol         = "icmp"
-    from_port        = "-1"
-    to_port          = "-1"
-    cidr_blocks      = [var.mgmt_server_cidr_block]
-  }
-
-  tags = {
-    Name = "kubeadm-remote"
-  }
-}
-
 
 data "aws_ami" "ubuntu_jammy" {
   most_recent      = true
@@ -218,25 +183,6 @@ data "aws_ami" "ubuntu_jammy" {
   }
 
   owners = ["099720109477"]  # amazon
-}
-
-resource "aws_instance" "kubeadm-jumpbox" {
-  ami           = data.aws_ami.ubuntu_jammy.id
-  associate_public_ip_address = true
-  ebs_block_device {
-    device_name = "/dev/sda1"
-    volume_size = "50"
-  }
-  instance_type = "t3.micro"
-  key_name = "k8splay"
-  private_ip =  cidrhost(local.public_subnet_cidr_block,10)
-  source_dest_check = false
-  subnet_id = module.vpc.public_subnet_id
-  vpc_security_group_ids = [aws_security_group.kubeadm-internal.id, aws_security_group.kubeadm-remote.id]
-
-  tags = {
-    Name = "kubeadm-jumpbox"
-  }
 }
 
 resource "aws_instance" "controllers" {
