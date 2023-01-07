@@ -96,7 +96,7 @@ resource "aws_route_table" "kubeadm-private" {
 resource "aws_route" "kubeadm-private-external" {
   route_table_id         = aws_route_table.kubeadm-private.id
   destination_cidr_block = "0.0.0.0/0"
-  gateway_id = aws_nat_gateway.kubeadm.id
+  nat_gateway_id = aws_nat_gateway.kubeadm.id
 }
 
 # These pod network route definitions are fragile as they assume that
@@ -121,6 +121,11 @@ resource "aws_route" "kubeadm-private-workers" {
   destination_cidr_block = "10.200.${count.index+20}.0/24"
   instance_id = aws_instance.workers[count.index].id
   route_table_id         = aws_route_table.kubeadm-private.id
+}
+
+resource "aws_route_table_association" "public" {
+  subnet_id      = aws_subnet.kubeadm-private.id
+  route_table_id = aws_route_table.kubeadm-private.id
 }
 
 resource "aws_security_group" "kubeadm-internal" {
