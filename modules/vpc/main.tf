@@ -89,6 +89,16 @@ resource "aws_security_group" "main" {
     to_port          = "-1"
     cidr_blocks      = [var.remote_access_cidr_block]
   }
+  # AWS normally provides a default egress rule, but terraform
+  # deletes it by default, so we need to add it here to keep it
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
 
   tags = {
     Name = "${var.resource_name}-remote"
