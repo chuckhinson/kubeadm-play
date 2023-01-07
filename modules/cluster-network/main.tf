@@ -10,23 +10,6 @@ terraform {
 }
 
 
-resource "aws_nat_gateway" "main" {
-  allocation_id = aws_eip.main.id
-  subnet_id     = var.public_subnet_id
-
-  tags = {
-    Name = var.resource_name
-  }
-}
-
-resource "aws_eip" "main" {
-  vpc = true
-  tags = {
-    Name = var.resource_name
-  }
-}
-
-
 resource "aws_subnet" "private" {
   vpc_id = var.vpc_id
   cidr_block = var.private_subnet_cidr_block
@@ -46,7 +29,7 @@ resource "aws_route_table" "private" {
 resource "aws_route" "private-external" {
   route_table_id         = aws_route_table.private.id
   destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id = aws_nat_gateway.main.id
+  nat_gateway_id = var.nat_gateway_id
 }
 
 ## Not sure whether I'll actually need these, so leave commented out

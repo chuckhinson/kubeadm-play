@@ -31,3 +31,10 @@ variable "instance_keypair_name" {
 variable "remote_access_cidr_block" {
   description = "The IP address of the (remote) server that is allowed to access the nodes (as a /32 CIDR block)"
 }
+
+variable "create_nat_gateway" {
+  nullable = true
+  default = false
+  type = bool
+  description = "boolean indicating whether a NAT gateway (with corresponding EIP) should be created in the public subnet"
+}

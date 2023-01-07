@@ -51,6 +51,33 @@ locals {
   private_subnet_cidr_block = cidrsubnet(var.node_vpc_cidr_block,8,2)
 }
 
+data "aws_ami" "ubuntu_jammy" {
+  most_recent      = true
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  }
+
+  filter {
+    name   = "root-device-type"
+    values = ["ebs"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  filter {
+    name = "architecture"
+    values = ["x86_64"]
+  }
+
+  owners = ["099720109477"]  # amazon
+}
+
+
 module "vpc" {
   source = "./modules/vpc"
 
@@ -60,6 +87,7 @@ module "vpc" {
   jumpbox_ami_id = data.aws_ami.ubuntu_jammy.id
   instance_keypair_name = "k8splay"
   remote_access_cidr_block = var.mgmt_server_cidr_block
+  create_nat_gateway = true
 
 }
 
@@ -67,12 +95,11 @@ module "cluster-network" {
   source = "./modules/cluster-network"
 
   vpc_id = module.vpc.vpc_id
-  public_subnet_id = module.vpc.public_subnet_id
+  nat_gateway_id = module.vpc.nat_gateway_id
   private_subnet_cidr_block = local.private_subnet_cidr_block
   resource_name = "kubeadm"
 
 }
-
 
 
 resource "aws_security_group" "kubeadm-internal" {
@@ -110,32 +137,6 @@ resource "aws_security_group" "kubeadm-internal" {
   }
 }
 
-
-data "aws_ami" "ubuntu_jammy" {
-  most_recent      = true
-
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
-  }
-
-  filter {
-    name   = "root-device-type"
-    values = ["ebs"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-
-  filter {
-    name = "architecture"
-    values = ["x86_64"]
-  }
-
-  owners = ["099720109477"]  # amazon
-}
 
 resource "aws_instance" "controllers" {
   count = 3

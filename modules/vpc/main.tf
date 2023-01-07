@@ -26,6 +26,24 @@ resource "aws_internet_gateway" "main" {
   }
 }
 
+resource "aws_nat_gateway" "main" {
+  count = var.create_nat_gateway ? 1 : 0
+  allocation_id = aws_eip.main[0].id
+  subnet_id     = aws_subnet.public.id
+
+  tags = {
+    Name = var.resource_name
+  }
+}
+
+resource "aws_eip" "main" {
+  count = var.create_nat_gateway ? 1 : 0
+  vpc = true
+  tags = {
+    Name = var.resource_name
+  }
+}
+
 resource "aws_subnet" "public" {
   vpc_id = aws_vpc.main.id
   cidr_block = var.public_subnet_cidr_block

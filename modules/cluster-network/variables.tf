@@ -10,10 +10,9 @@ variable "resource_name" {
   description = "The value to use for resource names"
 }
 
-variable "public_subnet_id" {
+variable "nat_gateway_id" {
   nullable = false
-  type = string
-  description = "Subnet id of the public subnet"
+  description = "id of NAT gateway that the private subnet can use for internet access"
 }
 
 variable "private_subnet_cidr_block" {
