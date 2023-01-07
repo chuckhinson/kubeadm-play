@@ -63,70 +63,17 @@ module "vpc" {
 
 }
 
-resource "aws_nat_gateway" "kubeadm" {
-  allocation_id = aws_eip.kubeadm.id
-  subnet_id     = module.vpc.public_subnet_id
+module "cluster-network" {
+  source = "./modules/cluster-network"
 
-  tags = {
-    Name = "kubeadm"
-  }
-}
-
-resource "aws_eip" "kubeadm" {
-  vpc = true
-}
-
-
-resource "aws_subnet" "kubeadm-private" {
   vpc_id = module.vpc.vpc_id
-  cidr_block = local.private_subnet_cidr_block
-  tags = {
-    Name = "kubeadm-private"
-  }
+  public_subnet_id = module.vpc.public_subnet_id
+  private_subnet_cidr_block = local.private_subnet_cidr_block
+  resource_name = "kubeadm"
+
 }
 
-resource "aws_route_table" "kubeadm-private" {
-  vpc_id = module.vpc.vpc_id
 
-  tags = {
-    Name = "kubeadm-private"
-  }
-}
-
-resource "aws_route" "kubeadm-private-external" {
-  route_table_id         = aws_route_table.kubeadm-private.id
-  destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id = aws_nat_gateway.kubeadm.id
-}
-
-# These pod network route definitions are fragile as they assume that
-# pod networks are assigned in a certain order (i.e., all controllers 
-# and then all workers).  I also wonder if the CNI plugin would take care of this
-resource "aws_route" "kubeadm-private-controllers" {
-  # shouldnt we also include the controllers? Or are we making it so that
-  # pods cant run on controllers?
-  count = length(aws_instance.controllers[*].private_ip)
-  destination_cidr_block = "10.200.${count.index+10}.0/24"
-  instance_id = aws_instance.controllers[count.index].id
-  route_table_id         = aws_route_table.kubeadm-private.id
-}
-
-# These pod network route definitions are fragile as they assume that
-# pod networks are assigned in a certain order (i.e., all controllers 
-# and then all workers). I also wonder if the CNI plugin would take care of this
-resource "aws_route" "kubeadm-private-workers" {
-  # shouldnt we also include the controllers? Or are we making it so that
-  # pods cant run on controllers?
-  count = length(aws_instance.workers[*].private_ip)
-  destination_cidr_block = "10.200.${count.index+20}.0/24"
-  instance_id = aws_instance.workers[count.index].id
-  route_table_id         = aws_route_table.kubeadm-private.id
-}
-
-resource "aws_route_table_association" "public" {
-  subnet_id      = aws_subnet.kubeadm-private.id
-  route_table_id = aws_route_table.kubeadm-private.id
-}
 
 resource "aws_security_group" "kubeadm-internal" {
   name        = "kubeadm-internal"
@@ -203,7 +150,7 @@ resource "aws_instance" "controllers" {
   key_name = "k8splay"
   private_ip =  cidrhost(local.private_subnet_cidr_block,10+count.index)
   source_dest_check = false
-  subnet_id = aws_subnet.kubeadm-private.id
+  subnet_id = module.cluster-network.private_subnet_id
 #  user_data = "name=controller-${count.index}"
   vpc_security_group_ids = [aws_security_group.kubeadm-internal.id]
 
@@ -225,7 +172,7 @@ resource "aws_instance" "workers" {
   key_name = "k8splay"
   private_ip =  cidrhost(local.private_subnet_cidr_block,20+count.index)
   source_dest_check = false
-  subnet_id = aws_subnet.kubeadm-private.id
+  subnet_id = module.cluster-network.private_subnet_id
 #  user_data = "name=worker-${count.index}|pod-cidr=10.200.${count.index}.0/24"
   vpc_security_group_ids = [aws_security_group.kubeadm-internal.id]
 
