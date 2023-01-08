@@ -91,8 +91,8 @@ module "vpc" {
 
 }
 
-module "cluster-network" {
-  source = "./modules/cluster-network"
+module "cluster" {
+  source = "./modules/cluster"
 
   vpc_id = module.vpc.vpc_id
   nat_gateway_id = module.vpc.nat_gateway_id
@@ -121,10 +121,10 @@ resource "aws_lb_target_group" "kubeadm-api" {
 }
 
 resource "aws_lb_target_group_attachment" "kubeadm-api" {
-  count = length(module.cluster-network.controller_ips)
+  count = length(module.cluster.controller_ips)
 
   target_group_arn = aws_lb_target_group.kubeadm-api.arn
-  target_id        = module.cluster-network.controller_ips[count.index]
+  target_id        = module.cluster.controller_ips[count.index]
   port             = 6443
 }
 
