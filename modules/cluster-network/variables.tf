@@ -15,9 +15,26 @@ variable "nat_gateway_id" {
   description = "id of NAT gateway that the private subnet can use for internet access"
 }
 
+variable "cluster_cidr_block" {
+  nullable = false
+  description = "CIDR block to be used for Cluser (Pod) IP addressess"
+}
+
 variable "private_subnet_cidr_block" {
   nullable = false
   type = string
-  description = "This is the CIDR block for the private subnet"
+  description = "This is the CIDR block for the private subnet where the cluster nodes live"
+}
+
+variable "node_ami_id" {
+  nullable = false
+  type = string
+  description = "AMI to be used for cluster nodes (workers and controllers)"
+}
+
+variable "instance_keypair_name" {
+  nullable = false
+  type = string
+  description = "The name of the keypair to be used for the cluster nodes"
 }
 
