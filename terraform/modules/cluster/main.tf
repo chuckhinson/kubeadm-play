@@ -112,7 +112,7 @@ resource "aws_instance" "controllers" {
     device_name = "/dev/sda1"
     volume_size = "50"
   }
-  instance_type = "t3.micro"
+  instance_type = "t3.small"
   key_name = var.instance_keypair_name
   private_ip =  cidrhost(var.private_subnet_cidr_block,10+count.index)
   source_dest_check = false
@@ -134,7 +134,7 @@ resource "aws_instance" "workers" {
     device_name = "/dev/sda1"
     volume_size = "50"
   }
-  instance_type = "t3.micro"
+  instance_type = "t3.small"
   key_name = var.instance_keypair_name
   private_ip =  cidrhost(var.private_subnet_cidr_block,20+count.index)
   source_dest_check = false
