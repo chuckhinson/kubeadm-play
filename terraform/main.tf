@@ -51,6 +51,8 @@ locals {
   private_subnet_cidr_block = cidrsubnet(var.node_vpc_cidr_block,8,2)
 }
 
+data "aws_caller_identity" "current" {}
+
 data "aws_ami" "ubuntu_jammy" {
   most_recent      = true
 
@@ -77,6 +79,33 @@ data "aws_ami" "ubuntu_jammy" {
   owners = ["099720109477"]  # amazon
 }
 
+data "aws_ami" "ubuntu_containerd" {
+  most_recent      = true
+
+  filter {
+    name   = "name"
+    values = ["containerd-ubuntu-22.04-*"]
+  }
+
+  filter {
+    name   = "root-device-type"
+    values = ["ebs"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  filter {
+    name = "architecture"
+    values = ["x86_64"]
+  }
+
+  owners = [data.aws_caller_identity.current.account_id]
+
+}
+
 
 module "vpc" {
   source = "./modules/vpc"
@@ -98,7 +127,7 @@ module "cluster" {
   nat_gateway_id = module.vpc.nat_gateway_id
   private_subnet_cidr_block = local.private_subnet_cidr_block
   resource_name = "kubeadm"
-  node_ami_id = data.aws_ami.ubuntu_jammy.id
+  node_ami_id = data.aws_ami.ubuntu_containerd.id
   instance_keypair_name = "k8splay"
   cluster_cidr_block = var.cluster_cidr_block
 
