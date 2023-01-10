@@ -8,9 +8,9 @@ packer {
 }
 
 source "amazon-ebs" "ubuntu" {
-  ami_name        = "containerd-ubuntu-22.04-{{timestamp}}"
+  ami_name        = "kube-ubuntu-22.04-{{timestamp}}"
   ami_description = "Ubuntu-22.04 with containerd installed"
-  instance_type   = "t2.micro"
+  instance_type   = "t2.small"
   profile         = "k8splay"
   region          = "us-east-2"
   source_ami_filter {
@@ -25,17 +25,23 @@ source "amazon-ebs" "ubuntu" {
   }
   ssh_username = "ubuntu"
   tags = {
-    Name = "containerd-ubuntu-22.04-{{timestamp}}"
+    Name = "kube-ubuntu-22.04-{{timestamp}}"
   }
 }
 
 build {
-  name    = "containerd"
+  name    = "kube"
   sources = [
     "source.amazon-ebs.ubuntu"
   ]
   provisioner "shell" {
+    inline = ["while [ ! -f /var/lib/cloud/instance/boot-finished ]; do echo 'Waiting for cloud-init...'; sleep 3s; done"]
+  }
+  provisioner "shell" {
     script = "./setup-containerd.sh"
+  }
+  provisioner "shell" {
+    script = "./install-kube.sh"
   }
 
 }

@@ -84,7 +84,7 @@ data "aws_ami" "ubuntu_containerd" {
 
   filter {
     name   = "name"
-    values = ["containerd-ubuntu-22.04-*"]
+    values = ["kube-ubuntu-22.04-*"]
   }
 
   filter {
