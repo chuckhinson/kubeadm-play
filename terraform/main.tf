@@ -159,7 +159,7 @@ resource "aws_lb_target_group_attachment" "kubeadm-api" {
 
 resource "aws_lb_listener" "kubeadm-api" {
   load_balancer_arn = aws_lb.kubeadm-api.arn
-  port              = "443"
+  port              = "6443"
   protocol          = "TCP"
 
   default_action {
