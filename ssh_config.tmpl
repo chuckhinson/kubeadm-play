@@ -1,0 +1,10 @@
+# Sample entry for ~/.ssh/config to enable ssh proxy via jumpbox
+# Host should be target servers (k8s nodes)
+# User is the user to connect to target server as
+# ProxyJump is user and IP for jumpbox
+# With this setup, you should be able to e.g., ssh 10.2.2.10 to ssh into a k8s node
+
+Host 10.2.2.*
+   IdentityFile ~/.ssh/k8splay_rsa
+   User ubuntu
+   ProxyJump ubuntu@3.21.98.128
