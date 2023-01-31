@@ -35,32 +35,6 @@ resource "aws_route" "private-external" {
   nat_gateway_id = var.nat_gateway_id
 }
 
-## Not sure whether I'll actually need these, so leave commented out
-## until I know for sure
-# # These pod network route definitions are fragile as they assume that
-# # pod networks are assigned in a certain order (i.e., all controllers 
-# # and then all workers).  I also wonder if the CNI plugin would take care of this
-# resource "aws_route" "kubeadm-private-controllers" {
-#   # shouldnt we also include the controllers? Or are we making it so that
-#   # pods cant run on controllers?
-#   count = length(aws_instance.controllers[*].private_ip)
-#   destination_cidr_block = "10.200.${count.index+10}.0/24"
-#   instance_id = aws_instance.controllers[count.index].id
-#   route_table_id         = aws_route_table.kubeadm-private.id
-# }
-
-# # These pod network route definitions are fragile as they assume that
-# # pod networks are assigned in a certain order (i.e., all controllers 
-# # and then all workers). I also wonder if the CNI plugin would take care of this
-# resource "aws_route" "kubeadm-private-workers" {
-#   # shouldnt we also include the controllers? Or are we making it so that
-#   # pods cant run on controllers?
-#   count = length(aws_instance.workers[*].private_ip)
-#   destination_cidr_block = "10.200.${count.index+20}.0/24"
-#   instance_id = aws_instance.workers[count.index].id
-#   route_table_id         = aws_route_table.kubeadm-private.id
-# }
-
 resource "aws_route_table_association" "private" {
   subnet_id      = aws_subnet.private.id
   route_table_id = aws_route_table.private.id
@@ -104,7 +78,7 @@ resource "aws_security_group" "cluster" {
 
 
 resource "aws_instance" "controllers" {
-  count = 3
+  count = var.controller_instance_count
 
   ami = var.node_ami_id
   associate_public_ip_address = false
@@ -112,12 +86,11 @@ resource "aws_instance" "controllers" {
     device_name = "/dev/sda1"
     volume_size = "50"
   }
-  instance_type = "t3.small"
+  instance_type = "t3.medium"
   key_name = var.instance_keypair_name
   private_ip =  cidrhost(var.private_subnet_cidr_block,10+count.index)
   source_dest_check = false
   subnet_id = aws_subnet.private.id
-#  user_data = "name=controller-${count.index}"
   vpc_security_group_ids = [aws_security_group.cluster.id]
 
   tags = {
@@ -126,7 +99,7 @@ resource "aws_instance" "controllers" {
 }
 
 resource "aws_instance" "workers" {
-  count = 3
+  count = var.worker_instance_count
 
   ami = var.node_ami_id
   associate_public_ip_address = false
@@ -134,12 +107,11 @@ resource "aws_instance" "workers" {
     device_name = "/dev/sda1"
     volume_size = "50"
   }
-  instance_type = "t3.small"
+  instance_type = "t3.medium"
   key_name = var.instance_keypair_name
   private_ip =  cidrhost(var.private_subnet_cidr_block,20+count.index)
   source_dest_check = false
   subnet_id = aws_subnet.private.id
-#  user_data = "name=worker-${count.index}|pod-cidr=10.200.${count.index}.0/24"
   vpc_security_group_ids = [aws_security_group.cluster.id]
 
   tags = {

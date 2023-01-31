@@ -18,32 +18,54 @@ terraform {
 }
 
 provider "aws" {
-  profile = "k8splay"
+  profile = var.aws_profile_name
   region = "us-east-2"
   default_tags {
     tags = {
-      Environment = "kubeadm"
+      Environment = var.project_name
     }
   }  
 }
 
-# Most of these should probably be locals instead of variables since there are some
-# places that we've hard-coded assumptions based on the default value
+variable "project_name" {
+  nullable = false
+  description = "The name to use as a prefix for aws resource names.  All AWS resources will be named project_name-xyz where xyz indicates the purpose of the resource"
+}
+
+variable "aws_profile_name" {
+  nullable = false
+  description = "That name of the aws profile to be use when access AWS APIs"
+}
+
+variable "ec2_keypair_name" {
+  nullable = false
+  description = "The name of the AWS Ec2 keypair to use to access ec2 instaces"
+}
+
+variable "remote_access_address" {
+  description = "The IP address of the (remote) server that is allowed to access the nodes (as a /32 CIDR block)"
+}
+
 variable "node_vpc_cidr_block" {
   default = "10.2.0.0/16"
   description = "This is the CIDR block for the VPC where the cluster will live"
 }
+
 variable "cluster_cidr_block" {
   default = "10.200.0.0/16"
   description = "The CIDR block to be used for Cluster IP addresses"
 }
-variable "service_cidr_block" {
-  default = "10.32.0.0/24"
-  description = "The CIDR block to be used for Service Virtual IP addresses"
+
+variable "controller_instance_count" {
+  nullable = true
+  default = 3
+  description = "The number of controller nodes"
 }
 
-variable "mgmt_server_cidr_block" {
-  description = "The IP address of the (remote) server that is allowed to access the nodes (as a /32 CIDR block)"
+variable "worker_instance_count" {
+  nullable = true
+  default = 3
+  description = "The number of worker nodes"
 }
 
 locals {
@@ -106,16 +128,15 @@ data "aws_ami" "ubuntu_containerd" {
 
 }
 
-
 module "vpc" {
   source = "./modules/vpc"
 
   vpc_cidr_block = var.node_vpc_cidr_block
   public_subnet_cidr_block = local.public_subnet_cidr_block
-  resource_name = "kubeadm"
+  resource_name = var.project_name
   jumpbox_ami_id = data.aws_ami.ubuntu_jammy.id
-  instance_keypair_name = "k8splay"
-  remote_access_cidr_block = var.mgmt_server_cidr_block
+  instance_keypair_name = var.ec2_keypair_name
+  remote_access_cidr_block = var.remote_access_address
   create_nat_gateway = true
 
 }
@@ -126,44 +147,46 @@ module "cluster" {
   vpc_id = module.vpc.vpc_id
   nat_gateway_id = module.vpc.nat_gateway_id
   private_subnet_cidr_block = local.private_subnet_cidr_block
-  resource_name = "kubeadm"
+  resource_name = var.project_name
   node_ami_id = data.aws_ami.ubuntu_containerd.id
-  instance_keypair_name = "k8splay"
+  instance_keypair_name = var.ec2_keypair_name
   cluster_cidr_block = var.cluster_cidr_block
+  controller_instance_count = var.controller_instance_count
+  worker_instance_count = var.worker_instance_count
 
 }
 
 
-resource "aws_lb" "kubeadm-api" {
-  name               = "kubeadm-api"
+resource "aws_lb" "cluster-api" {
+  name               = "${var.project_name}-cluster-api"
   internal           = false
   load_balancer_type = "network"
   subnets            = [module.vpc.public_subnet_id]
 }
 
-resource "aws_lb_target_group" "kubeadm-api" {
-  name        = "kubeadm-api"
+resource "aws_lb_target_group" "cluster-api" {
+  name        = "${var.project_name}-cluster-api"
   port        = 6443
   protocol    = "TCP"
   target_type = "ip"
   vpc_id      = module.vpc.vpc_id
 }
 
-resource "aws_lb_target_group_attachment" "kubeadm-api" {
+resource "aws_lb_target_group_attachment" "cluster-api" {
   count = length(module.cluster.controller_ips)
 
-  target_group_arn = aws_lb_target_group.kubeadm-api.arn
+  target_group_arn = aws_lb_target_group.cluster-api.arn
   target_id        = module.cluster.controller_ips[count.index]
   port             = 6443
 }
 
-resource "aws_lb_listener" "kubeadm-api" {
-  load_balancer_arn = aws_lb.kubeadm-api.arn
+resource "aws_lb_listener" "cluster-api" {
+  load_balancer_arn = aws_lb.cluster-api.arn
   port              = "6443"
   protocol          = "TCP"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.kubeadm-api.arn
+    target_group_arn = aws_lb_target_group.cluster-api.arn
   }
 }

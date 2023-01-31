@@ -38,3 +38,14 @@ variable "instance_keypair_name" {
   description = "The name of the keypair to be used for the cluster nodes"
 }
 
+variable "controller_instance_count" {
+  nullable = true
+  default = 3
+  description = "The number of controller nodes"
+}
+
+variable "worker_instance_count" {
+  nullable = true
+  default = 3
+  description = "The number of worker nodes"
+}
