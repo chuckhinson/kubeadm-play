@@ -9,3 +9,7 @@ output "public_subnet_id" {
 output "nat_gateway_id" {
   value = one(aws_nat_gateway.main[*].id)
 }
+
+output "jumpbox_public_ip" {
+  value = aws_instance.jumpbox.public_ip
+}
