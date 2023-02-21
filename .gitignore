@@ -33,3 +33,7 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+# Exclude packer *.auto.pkrvars.hcl and *.auto.pkrvars.json
+*.auto.pkrvars.hcl
+*.auto.pkrvars.json

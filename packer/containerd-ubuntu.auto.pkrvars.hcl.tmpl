@@ -1,0 +1,18 @@
+# Profile to use to specify credentials; profile MUST specify a region
+aws_profile = "profile name"
+
+# Specify and owner id to be used to idetify the source image to be used
+# Note GovCloud regions have a different owner id for amazon-owned images
+# following are owner ids for amazon
+# commercial = "099720109477"
+# gov cloud = "513442679011"
+#
+#source_ami_owner_id = "099720109477"
+
+# A filter string to be used to find the correct ami.  See the README.md for details about how this variable is used
+#
+#source_ami_name_filter = "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"
+ 
+# A prefix to use when naming the target ami.  The AMI name will consist of the base name with a timestamp appended to it.
+#
+#target_ami_base_name = "kube-ubuntu-22.04"
