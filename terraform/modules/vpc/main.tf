@@ -15,14 +15,14 @@ resource "aws_vpc" "main" {
   enable_dns_support = true
   enable_dns_hostnames = true
   tags = {
-    Name = var.resource_name
+    Name = var.cluster_name
   }
 }
 
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
   tags = {
-    Name = var.resource_name
+    Name = var.cluster_name
   }
 }
 
@@ -32,7 +32,7 @@ resource "aws_nat_gateway" "main" {
   subnet_id     = aws_subnet.public.id
 
   tags = {
-    Name = var.resource_name
+    Name = var.cluster_name
   }
 }
 
@@ -40,7 +40,7 @@ resource "aws_eip" "main" {
   count = var.create_nat_gateway ? 1 : 0
   vpc = true
   tags = {
-    Name = var.resource_name
+    Name = var.cluster_name
   }
 }
 
@@ -48,7 +48,7 @@ resource "aws_subnet" "public" {
   vpc_id = aws_vpc.main.id
   cidr_block = var.public_subnet_cidr_block
   tags = {
-    Name = "${var.resource_name}-public"
+    Name = "${var.cluster_name}-public"
   }
   # Establish a way for external modules to depend on the igw
   # without having to expose the igw as an output
@@ -59,7 +59,7 @@ resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    Name = "${var.resource_name}-public"
+    Name = "${var.cluster_name}-public"
   }
 }
 
@@ -75,7 +75,7 @@ resource "aws_route_table_association" "public" {
 }
 
 resource "aws_security_group" "main" {
-  name        = "${var.resource_name}-remote"
+  name        = "${var.cluster_name}-remote"
   description = "Allow remote access to cluster"
   vpc_id      = aws_vpc.main.id
 
@@ -119,7 +119,7 @@ resource "aws_security_group" "main" {
 
 
   tags = {
-    Name = "${var.resource_name}-remote"
+    Name = "${var.cluster_name}-remote"
   }
 }
 
@@ -138,7 +138,7 @@ resource "aws_instance" "jumpbox" {
   vpc_security_group_ids = [aws_security_group.main.id]
 
   tags = {
-    Name = "${var.resource_name}-jumpbox"
+    Name = "${var.cluster_name}-jumpbox"
   }
 }
 

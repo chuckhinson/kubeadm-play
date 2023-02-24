@@ -48,7 +48,7 @@ The process is essentially;
 1. `vi ssh_config`
     1. update the jumpbox Hostname with the jumpbox public IP address (captured in the previous step)
 1. verify configuration by running `ssh -F ssh_config 10.2.2.10 "ls /tmp"`
-   1. You may need to run `ssh-keygen -f "$HOME/.ssh/known_hosts" -R "10.2.2.10` if you're recreating the cluster
+   1. You may need to run `ssh-keygen -f "$HOME/.ssh/known_hosts" -R "10.2.2.10"` if you're recreating the cluster
 
 ### Deploy the cluster
 1. Deploy k8s on first control-plane node

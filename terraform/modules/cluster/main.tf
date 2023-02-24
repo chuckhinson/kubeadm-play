@@ -17,7 +17,7 @@ resource "aws_subnet" "private" {
   vpc_id = var.vpc_id
   cidr_block = var.private_subnet_cidr_block
   tags = {
-    Name = "${var.resource_name}-private"
+    Name = "${var.cluster_name}-private"
   }
 }
 
@@ -25,7 +25,7 @@ resource "aws_route_table" "private" {
   vpc_id = var.vpc_id
 
   tags = {
-    Name = "${var.resource_name}-private"
+    Name = "${var.cluster_name}-private"
   }
 }
 
@@ -42,7 +42,7 @@ resource "aws_route_table_association" "private" {
 
 
 resource "aws_security_group" "cluster" {
-  name        = "${var.resource_name}-cluster"
+  name        = "${var.cluster_name}-cluster"
   description = "Allow cluster inbound traffic"
   vpc_id      = var.vpc_id
 
@@ -72,7 +72,7 @@ resource "aws_security_group" "cluster" {
   }
 
   tags = {
-    Name = "${var.resource_name}-internal"
+    Name = "${var.cluster_name}-internal"
   }
 }
 
@@ -94,7 +94,7 @@ resource "aws_instance" "controllers" {
   vpc_security_group_ids = [aws_security_group.cluster.id]
 
   tags = {
-    Name = "controller-${count.index}"
+    Name = "${var.cluster_name}-controller-${count.index}"
   }
 }
 
@@ -115,7 +115,7 @@ resource "aws_instance" "workers" {
   vpc_security_group_ids = [aws_security_group.cluster.id]
 
   tags = {
-    Name = "worker-${count.index}"
+    Name = "${var.cluster_name}-worker-${count.index}"
   }
 }
 

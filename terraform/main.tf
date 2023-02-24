@@ -19,22 +19,29 @@ terraform {
 
 provider "aws" {
   profile = var.aws_profile_name
-  region = "us-east-2"
+  region = var.aws_region
   default_tags {
     tags = {
-      Environment = var.project_name
+      Environment = var.cluster_name
     }
   }  
 }
 
-variable "project_name" {
+variable "cluster_name" {
   nullable = false
-  description = "The name to use as a prefix for aws resource names.  All AWS resources will be named project_name-xyz where xyz indicates the purpose of the resource"
+  description = "The cluster name - will be used in the names of all resources.  This must be the cluster name as provided to kubespray in order for the cloud-controller manager to work properly"
 }
 
 variable "aws_profile_name" {
   nullable = false
   description = "That name of the aws profile to be use when access AWS APIs"
+}
+
+variable "aws_region" {
+  # per https://github.com/hashicorp/terraform-provider-aws/issues/7750 the aws provider is not
+  # using the region defined in aws profile, so it will need to be specified
+  nullable = false
+  description = "The region to operate in"
 }
 
 variable "ec2_keypair_name" {
@@ -68,6 +75,20 @@ variable "worker_instance_count" {
   description = "The number of worker nodes"
 }
 
+variable "node_ami_owner_id" {
+  # amazon commercial = 099720109477
+  # amazon gov cloud = 513442679011
+  default = null
+  nullable = true
+  type = string
+  description = <<EOT
+  Owner id to use when searching for ami to be used as node base image.  Normally
+  prefer images owned by amazon vs aws-marketplace. If null, only images owned by
+  the current account will be considered
+  EOT
+}
+
+
 locals {
   public_subnet_cidr_block = cidrsubnet(var.node_vpc_cidr_block,8,1)
   private_subnet_cidr_block = cidrsubnet(var.node_vpc_cidr_block,8,2)
@@ -98,7 +119,7 @@ data "aws_ami" "ubuntu_jammy" {
     values = ["x86_64"]
   }
 
-  owners = ["099720109477"]  # amazon
+  owners = [var.node_ami_owner_id]  # amazon
 }
 
 data "aws_ami" "ubuntu_containerd" {
@@ -133,7 +154,7 @@ module "vpc" {
 
   vpc_cidr_block = var.node_vpc_cidr_block
   public_subnet_cidr_block = local.public_subnet_cidr_block
-  resource_name = var.project_name
+  cluster_name = var.cluster_name
   jumpbox_ami_id = data.aws_ami.ubuntu_jammy.id
   instance_keypair_name = var.ec2_keypair_name
   remote_access_cidr_block = var.remote_access_address
@@ -147,7 +168,7 @@ module "cluster" {
   vpc_id = module.vpc.vpc_id
   nat_gateway_id = module.vpc.nat_gateway_id
   private_subnet_cidr_block = local.private_subnet_cidr_block
-  resource_name = var.project_name
+  cluster_name = var.cluster_name
   node_ami_id = data.aws_ami.ubuntu_containerd.id
   instance_keypair_name = var.ec2_keypair_name
   cluster_cidr_block = var.cluster_cidr_block
@@ -158,14 +179,14 @@ module "cluster" {
 
 
 resource "aws_lb" "cluster-api" {
-  name               = "${var.project_name}-cluster-api"
+  name               = "${var.cluster_name}-cluster-api"
   internal           = false
   load_balancer_type = "network"
   subnets            = [module.vpc.public_subnet_id]
 }
 
 resource "aws_lb_target_group" "cluster-api" {
-  name        = "${var.project_name}-cluster-api"
+  name        = "${var.cluster_name}-cluster-api"
   port        = 6443
   protocol    = "TCP"
   target_type = "ip"

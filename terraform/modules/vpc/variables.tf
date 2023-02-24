@@ -10,10 +10,10 @@ variable "public_subnet_cidr_block" {
   description = "This is the CIDR block for the public subnet"
 }
 
-variable "resource_name" {
+variable "cluster_name" {
   nullable = false
   type = string
-  description = "The value to use for resource names"
+  description = "The cluster name - will be used in the names of all resources.  This must be the cluster name as provided to kubespray in order for the cloud-controller manager to work properly"
 }
 
 variable "jumpbox_ami_id" {
