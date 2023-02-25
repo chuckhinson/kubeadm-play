@@ -12,6 +12,7 @@ declare BASTION_IP
 declare CONTROLLER_NODES
 declare WORKER_NODES
 declare ELB_NAME
+declare CERT_KEY
 
 function gatherClusterInfoFromTerraform () {
 
@@ -54,7 +55,9 @@ function buildKnownHostsFile () {
 
 function initPrimaryController () {
 
-  local cmd="sudo kubeadm init --kubernetes-version \"1.26.0\" --control-plane-endpoint ${ELB_NAME}:6443 --pod-network-cidr 10.2.128.0/20 --service-cidr 10.2.64.0/20 --upload-certs"
+  CERT_KEY=$(ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "sudo kubeadm certs certificate-key")
+
+  local cmd="sudo kubeadm init --kubernetes-version \"1.26.0\" --control-plane-endpoint ${ELB_NAME}:6443 --pod-network-cidr 10.2.128.0/20 --service-cidr 10.2.64.0/20 --certificate-key $CERT_KEY --upload-certs"
   echo "$cmd"
 
   ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "$cmd"
@@ -92,6 +95,23 @@ function installCalicoCNI () {
 
 }
 
+
+function addSecondaryControllers () {
+
+  echo "Adding remaining control plane nodes"
+  local cmd="sudo kubeadm token create --print-join-command --certificate-key ${CERT_KEY}"
+  local join=$(ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "$cmd")
+  echo "$join"
+
+  for ip in "${CONTROLLER_NODES[@]:1}"; do
+    echo "Joining controller $ip"
+    ssh -F "${SSH_CONFIG_FILE}" "$ip" "sudo $join"
+  done
+
+}
+
+
+
 function main () {
 
   gatherClusterInfoFromTerraform
@@ -101,6 +121,7 @@ function main () {
   setupKubectl
   waitForElbToBecomeHealthy
   installCalicoCNI
+  addSecondaryControllers
 
 }
 
