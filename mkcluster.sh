@@ -10,11 +10,13 @@ declare KEY_FILE="$HOME/.ssh/k8schuck_rsa"
 declare BASTION_IP
 declare CONTROLLER_NODES
 declare WORKER_NODES
+declare ELB_NAME
 
 function gatherClusterInfoFromTerraform () {
 
   echo "Gathering infrastructure info"
 
+  ELB_NAME=$(terraform -chdir=./terraform output -json | jq -r '.elb_dns_name.value')
   BASTION_IP=$(terraform -chdir=./terraform output -json | jq -r '.jumpbox_public_ip.value')
 
   CONTROLLER_NODES=()
@@ -49,13 +51,22 @@ function buildKnownHostsFile () {
 
 }
 
+function initPrimaryController () {
+
+  local cmd="sudo kubeadm init --kubernetes-version \"1.26.0\" --control-plane-endpoint ${ELB_NAME}:6443 --pod-network-cidr 10.2.128.0/20 --service-cidr 10.2.64.0/20 --upload-certs"
+  echo "$cmd"
+
+  ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "$cmd"
+
+}
 
 function main () {
 
   gatherClusterInfoFromTerraform
   buildSshConfigFile
   buildKnownHostsFile
-  
+  initPrimaryController
+
 }
 
 
