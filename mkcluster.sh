@@ -127,13 +127,13 @@ function addWokerNodes () {
 function main () {
 
   gatherClusterInfoFromTerraform
-  # buildSshConfigFile
-  # buildKnownHostsFile
-  # initPrimaryController
-  # setupKubectl
-  # waitForElbToBecomeHealthy
-  # installCalicoCNI
-  # addSecondaryControllers
+  buildSshConfigFile
+  buildKnownHostsFile
+  initPrimaryController
+  setupKubectl
+  waitForElbToBecomeHealthy
+  installCalicoCNI
+  addSecondaryControllers
   addWokerNodes  
 }
 
