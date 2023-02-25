@@ -194,10 +194,10 @@ resource "aws_lb_target_group" "cluster-api" {
 }
 
 resource "aws_lb_target_group_attachment" "cluster-api" {
-  count = length(module.cluster.controller_ips)
+  count = length(module.cluster.controller_nodes)
 
   target_group_arn = aws_lb_target_group.cluster-api.arn
-  target_id        = module.cluster.controller_ips[count.index]
+  target_id        = module.cluster.controller_nodes[count.index].private_ip
   port             = 6443
 }
 
