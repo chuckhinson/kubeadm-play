@@ -38,6 +38,7 @@ terraform.rc
 *.auto.pkrvars.hcl
 *.auto.pkrvars.json
 
-# Exclude our generated ssh config files
+# Exclude some of our generated config files
 ssh_config
 known_hosts
+cluster_admin.conf
