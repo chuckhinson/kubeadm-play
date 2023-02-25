@@ -6,6 +6,7 @@ declare KNOWN_HOSTS_FILE="$(pwd)/known_hosts"
 declare SSH_CONFIG_FILE="$(pwd)/ssh_config"
 declare SSH_CONFIG_FILE_TEMPLATE="$(pwd)/ssh_config.tmpl"
 declare KEY_FILE="$HOME/.ssh/k8schuck_rsa"
+declare ADMIN_CONF_FILE=$(pwd)/cluster_admin.conf
 
 declare BASTION_IP
 declare CONTROLLER_NODES
@@ -60,12 +61,46 @@ function initPrimaryController () {
 
 }
 
+function setupKubectl () {
+
+  echo "Settuping kubectl config"
+
+  local cmd='mkdir -p $HOME/.kube; sudo cp /etc/kubernetes/admin.conf $HOME/.kube/config; sudo chown $(id -u):$(id -g) $HOME/.kube/config'
+  ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "$cmd"
+
+  scp -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}:~/.kube/config" "${ADMIN_CONF_FILE}"
+
+  echo "For local kubectl access, 'export KUBECONFIG=${ADMIN_CONF_FILE}'"
+
+}
+
+function waitForElbToBecomeHealthy () {
+
+  printf "Waiting for ELB to get healthy."
+  until kubectl get --raw='/readyz'; do
+    printf "."
+    sleep 3
+  done
+  printf "\n"
+
+}
+
+function installCalicoCNI () {
+
+  echo "Installing Calico CNI"
+  kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/master/manifests/calico.yaml
+
+}
+
 function main () {
 
   gatherClusterInfoFromTerraform
   buildSshConfigFile
   buildKnownHostsFile
   initPrimaryController
+  setupKubectl
+  waitForElbToBecomeHealthy
+  installCalicoCNI
 
 }
 
