@@ -110,19 +110,31 @@ function addSecondaryControllers () {
 
 }
 
+function addWokerNodes () {
 
+  local cmd="sudo kubeadm token create --print-join-command"
+  local join=$(ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "$cmd")
+  echo "$join"
+
+  for ip in "${WORKER_NODES[@]}"; do
+    echo "Joining worker $ip"
+    ssh -F "${SSH_CONFIG_FILE}" "$ip" "sudo $join"
+  done
+
+
+}
 
 function main () {
 
   gatherClusterInfoFromTerraform
-  buildSshConfigFile
-  buildKnownHostsFile
-  initPrimaryController
-  setupKubectl
-  waitForElbToBecomeHealthy
-  installCalicoCNI
-  addSecondaryControllers
-
+  # buildSshConfigFile
+  # buildKnownHostsFile
+  # initPrimaryController
+  # setupKubectl
+  # waitForElbToBecomeHealthy
+  # installCalicoCNI
+  # addSecondaryControllers
+  addWokerNodes  
 }
 
 
