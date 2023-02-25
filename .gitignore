@@ -37,3 +37,7 @@ terraform.rc
 # Exclude packer *.auto.pkrvars.hcl and *.auto.pkrvars.json
 *.auto.pkrvars.hcl
 *.auto.pkrvars.json
+
+# Exclude our generated ssh config files
+ssh_config
+known_hosts
