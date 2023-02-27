@@ -49,6 +49,17 @@ The process is essentially;
 You can also now use `ssh -F ssh_config 10.2.2.x` to ssh into your cluster nodes
 
 
+## Dashboard
+### Install
+1. `deploy-dashboard.sh`
+
+### Access
+  - `kubectl -n kubernetes-dashboard create token admin-user`
+  - `sudo kubectl port-forward service/kubernetes-dashboard -n kubernetes-dashboard --kubeconfig $(pwd)/cluster_admin.conf 443:443`
+  - goto https://localhost/ and login
+    - select Token and paste in token from above
+
+
 ### Resources
 I found the following resources helpful while figuring all of this out:
 
