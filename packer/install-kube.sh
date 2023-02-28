@@ -14,3 +14,5 @@ sudo apt-get install -y \
     kubeadm="${KUBE_VERSION}" \
     kubectl="${KUBE_VERSION}" 
 sudo apt-mark hold kubelet kubeadm kubectl
+
+sudo kubeadm config images pull
