@@ -51,13 +51,29 @@ You can also now use `ssh -F ssh_config 10.2.2.x` to ssh into your cluster nodes
 
 ## Dashboard
 ### Install
-1. `deploy-dashboard.sh`
+1. `./deploy-dashboard.sh`
 
 ### Access
-  - `kubectl -n kubernetes-dashboard create token admin-user`
+  - Generate a login token:
+    - `kubectl -n kubernetes-dashboard create token admin-user`
+  
+#### Access without ingress
   - `sudo kubectl port-forward service/kubernetes-dashboard -n kubernetes-dashboard --kubeconfig $(pwd)/cluster_admin.conf 443:443`
   - goto https://localhost/ and login
     - select Token and paste in token from above
+#### Access with ingress controller
+  - `./deploy-nginx-ingress.sh`
+  - Select host name and update configuration
+      - `nslookup $(terraform -chdir=./terraform output -json | jq -r '.elb_dns_name.value')`
+      - `vi /etc/hots`       # map elb IP to selected hostname
+      - `vi dashboard.yaml`  # update hostname (2 places)
+  - Create the dashboard ssl certficate secret dashboard-tls in the kubernetes dashboard namespace
+      - `kubectl create secret tls dashboard-tls -n kubernetes-dashboard --key="$KEY_FILE" --cert="$CERT_FILE"`
+      - $CERT_FILE must contain server cert plus intermediate and root certs
+      - certs must be appear in file in reverse order - server cert, then intermediate and then root
+  - `kubectl apply -f dashboard-ingress.yaml`
+  - goto https://$HOSTNAME/ and login  (where HOSTNAME is the host name selected above)
+     - Note that you may need to wait up to three minutes for the elb targets to become healthy before you can access the dashboard
 
 
 ### Resources

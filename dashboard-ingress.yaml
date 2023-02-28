@@ -1,0 +1,37 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kubernetes-dashboard-ingress
+  namespace: kubernetes-dashboard
+  annotations:
+    # This may require additional configuration of the controller
+    # nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+
+    # Use this with the kubernetes-supplied nginx ingress
+    # to tell nginx that it should use https to connect to
+    # the backend service (instead of http)
+    # (https://github.com/kubernetes/ingress-nginx)
+    # nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+
+    # Use this with the nginx-supplied ingress controller
+    # to tell nginx that it should use https to connect to
+    # the backend service (instead of http)
+    # See https://github.com/nginxinc/kubernetes-ingress/tree/v3.0.2/examples/ingress-resources/ssl-services
+    nginx.org/ssl-services: "kubernetes-dashboard"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+      - "dashboard.c3ms.org"
+    secretName: dashboard-tls
+  rules:
+  - host: "dashboard.c3ms.org"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: kubernetes-dashboard
+            port:
+              number: 443
