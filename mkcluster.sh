@@ -78,13 +78,27 @@ function setupKubectl () {
 }
 
 function waitForElbToBecomeHealthy () {
+  # All kubernetes API request go through the load balancer.  Until at least one elb target
+  # (i.e., a control-plane node) is marked healthy, requests are round-robined across all elb
+  # targets (some of which may be pointing to nodes that dont yet have the api server installed).
+  # With only the first control-plane node initialized, two of every three api requests will fail.
+  # To help prevent problems resulting from failed requests, we want to wait until
+  # the first elb target becaomes healthy (by default, it take 5 consecutive successful
+  # health checks for a target to be marked healty, and health check)
 
-  printf "Waiting for ELB to get healthy."
-  until kubectl --kubeconfig="${ADMIN_CONF_FILE}" get --raw='/readyz'; do
-    printf "."
-    sleep 3
+  printf "\nWaiting for at least one ELB target to get healthy.\n"
+  printf "This could take up to three minutes\n"
+  local success_count=0
+  until [ $success_count -gt 3 ]; do
+    if  kubectl --kubeconfig="${ADMIN_CONF_FILE}" get --raw='/readyz' 2> /dev/null ; then
+      # see https://askubuntu.com/questions/1379923/increment-operator-does-not-work-on-a-variable-if-variable-is-set-to-0
+      ((success_count+=1))
+    else
+      success_count=0
+      printf "."
+    fi
+    sleep 5
   done
-  printf "\n"
 
 }
 
@@ -130,10 +144,10 @@ function main () {
   buildSshConfigFile
   buildKnownHostsFile
   initPrimaryController
+  addSecondaryControllers
   setupKubectl
   waitForElbToBecomeHealthy
   installCalicoCNI
-  addSecondaryControllers
   addWokerNodes  
 }
 
