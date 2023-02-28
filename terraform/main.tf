@@ -211,3 +211,30 @@ resource "aws_lb_listener" "cluster-api" {
     target_group_arn = aws_lb_target_group.cluster-api.arn
   }
 }
+
+resource "aws_lb_target_group" "cluster-ingress" {
+  name        = "${var.cluster_name}-cluster-ingress"
+  port        = 443
+  protocol    = "TCP"
+  target_type = "ip"
+  vpc_id      = module.vpc.vpc_id
+}
+
+resource "aws_lb_target_group_attachment" "cluster-ingress" {
+  count = length(module.cluster.worker_nodes)
+
+  target_group_arn = aws_lb_target_group.cluster-ingress.arn
+  target_id        = module.cluster.worker_nodes[count.index].private_ip
+  port             = 443
+}
+
+resource "aws_lb_listener" "cluster-ingress" {
+  load_balancer_arn = aws_lb.cluster-api.arn
+  port              = "443"
+  protocol          = "TCP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.cluster-ingress.arn
+  }
+}
