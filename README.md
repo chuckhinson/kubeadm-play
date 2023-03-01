@@ -48,10 +48,31 @@ The process is essentially;
 
 You can also now use `ssh -F ssh_config 10.2.2.x` to ssh into your cluster nodes
 
+## Persistent Volumes
+### Install
+  - Review deploy-pv.sh to ensure node labels are using correct zone and region
+  - `./deploy-pv.sh`
+
+### Test
+  - `kubectl apply -f pvtestpod.yaml`
+  - Wait for volume to be created (30 - 45 seconds)
+    - `kubectl get pvc`
+    - `kubectl get pv`
+  - wait 15 - 20 seconds for app to write some data
+  - `kubectl exec app -- cat /data/out.txt`
+  - observe timesteamps in output
+  - `kubectl delete pod app`
+  - wait a minute or two and spin up new pod
+  - `kubectl apply -f pvtestpod.yaml`
+  - wait 15 - 20 seconds
+  - `kubectl exec app -- cat /data/out.txt`
+  - observe timestamps and note gap when pod was deleted and then restarted
+  - `kubectl delete pod app`
+
 
 ## Dashboard
 ### Install
-1. `./deploy-dashboard.sh`
+  - `./deploy-dashboard.sh`
 
 ### Access
   - Generate a login token:
