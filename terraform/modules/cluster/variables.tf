@@ -49,3 +49,9 @@ variable "worker_instance_count" {
   default = 3
   description = "The number of worker nodes"
 }
+
+variable "node_instance_profile_name" {
+  nullable = false
+  type = string
+  description = "The name of the instance profile to be assigned to all nodes"
+}

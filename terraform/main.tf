@@ -162,6 +162,12 @@ module "vpc" {
 
 }
 
+module "iam" {
+  source = "./modules/iam"
+
+  cluster_name = var.cluster_name
+}
+
 module "cluster" {
   source = "./modules/cluster"
 
@@ -174,6 +180,7 @@ module "cluster" {
   cluster_cidr_block = var.cluster_cidr_block
   controller_instance_count = var.controller_instance_count
   worker_instance_count = var.worker_instance_count
+  node_instance_profile_name = module.iam.node_instance_profile_name
 
 }
 
