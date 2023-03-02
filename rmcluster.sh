@@ -23,6 +23,12 @@ function gatherClusterInfoFromTerraform () {
 
 }
 
+function releaseVolumes () {
+
+  kubectl delete pvc --all=true -A
+
+}
+
 function resetNodes () {
 
   local nodes=( "${WORKER_NODES[@]}" "${CONTROLLER_NODES[@]}" )
@@ -38,6 +44,7 @@ function resetNodes () {
 function main () {
 
   gatherClusterInfoFromTerraform
+  releaseVolumes
   resetNodes
 
 }
