@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+export KUBECONFIG="$(pwd)/cluster_admin.conf"
+
 declare SSH_CONFIG_FILE="$(pwd)/ssh_config"
 
 declare CONTROLLER_NODES

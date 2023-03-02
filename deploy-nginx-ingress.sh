@@ -9,6 +9,7 @@ set -euo pipefail
 # the kubernetes organization on github (https://github.com/kubernetes/ingress-nginx)
 # so be careful when searching for documentation
 
+export KUBECONFIG="$(pwd)/cluster_admin.conf"
 
 mkdir -p ./tmp
 (cd ./tmp; git clone https://github.com/nginxinc/kubernetes-ingress.git --branch v3.0.2)

@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+export KUBECONFIG="$(pwd)/cluster_admin.conf"
+
 declare ZONE
 declare REGION
 
