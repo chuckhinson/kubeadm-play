@@ -37,10 +37,8 @@ function labelNodes () {
   ZONE="$(kubectl get nodes -o=jsonpath='{.items[0].metadata.labels.topology\.ebs\.csi\.aws\.com/zone}')"
   REGION="${ZONE:0:-1}"
 
-  kubectl label nodes ip-10-2-2-20 topology.kubernetes.io/zone="${ZONE}"
-  kubectl label nodes ip-10-2-2-21 topology.kubernetes.io/zone="${ZONE}"
-  kubectl label nodes ip-10-2-2-20 topology.kubernetes.io/region="${REGION}"
-  kubectl label nodes ip-10-2-2-21 topology.kubernetes.io/region="${REGION}"
+  kubectl label nodes --all=true "topology.kubernetes.io/region=${REGION}"
+  kubectl label nodes --all=true "topology.kubernetes.io/zone=${ZONE}"
 
 }
 
