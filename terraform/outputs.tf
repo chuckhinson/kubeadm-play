@@ -1,3 +1,7 @@
+output "cluster_name" {
+  value = var.cluster_name
+}
+
 output "elb_dns_name" {
   value = aws_lb.cluster-api.dns_name
 }

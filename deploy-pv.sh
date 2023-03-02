@@ -5,11 +5,24 @@ set -euo pipefail
 declare ZONE
 declare REGION
 
+declare CLUSTER_NAME=$(terraform -chdir=./terraform output -json | jq -r '.cluster_name.value')
+
 function installAwsEbsCSI () {
 
   kubectl apply -k "github.com/kubernetes-sigs/aws-ebs-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.16"	
 
+  # give pods time to start up
   sleep 10s
+
+  # Patch the controller to make it label volumes to make it easier for us to see volumes
+  # that belong to this cluster
+  local tag_value="$CLUSTER_NAME-ebs-csi"
+  kubectl patch deployment -n kube-system ebs-csi-controller --type='json' \
+         --patch='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value":"--extra-tags=Name='"${tag_value}"'"}]'
+
+  # give pods time to restart since we've updated the deployment
+  sleep 10s
+
 }
 
 function labelNodes () {
