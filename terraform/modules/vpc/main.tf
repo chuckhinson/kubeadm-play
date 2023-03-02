@@ -129,6 +129,10 @@ resource "aws_instance" "jumpbox" {
   ebs_block_device {
     device_name = "/dev/sda1"
     volume_size = "50"
+    tags = {
+      Name = "${var.cluster_name}-jumpbox"
+      Environment = var.cluster_name
+    }
   }
   instance_type = "t3.micro"
   key_name = var.instance_keypair_name

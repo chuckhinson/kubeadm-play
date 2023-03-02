@@ -85,6 +85,10 @@ resource "aws_instance" "controllers" {
   ebs_block_device {
     device_name = "/dev/sda1"
     volume_size = "50"
+    tags = {
+      Name = "${var.cluster_name}-controller-${count.index}"
+      Environment = var.cluster_name
+    }
   }
   iam_instance_profile = var.node_instance_profile_name
   instance_type = "t3.medium"
@@ -107,6 +111,10 @@ resource "aws_instance" "workers" {
   ebs_block_device {
     device_name = "/dev/sda1"
     volume_size = "50"
+    tags = {
+      Name = "${var.cluster_name}-worker-${count.index}"
+      Environment = var.cluster_name
+    }
   }
   iam_instance_profile = var.node_instance_profile_name
   instance_type = "t3.medium"
