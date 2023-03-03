@@ -16,3 +16,10 @@ sudo apt-get install -y \
 sudo apt-mark hold kubelet kubeadm kubectl
 
 sudo kubeadm config images pull
+
+# Setup crictl configuration since use of default endpoints have been deprecated
+# (NOTE: crictl is bundled with the kubeadm package)
+cat <<EOF | sudo tee /etc/crictl.yaml
+runtime-endpoint: unix:///run/containerd/containerd.sock
+image-endpoint: unix:///run/containerd/containerd.sock
+EOF
