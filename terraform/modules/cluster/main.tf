@@ -9,6 +9,16 @@ terraform {
   }
 }
 
+locals {
+  # aws user data script for setting hostname to the FQDN private dns name of the instance
+  # (as required by aws cloud provider)
+  hostname_user_data =  <<EOF
+#!/bin/bash
+sudo hostnamectl set-hostname $(curl -s http://169.254.169.254/latest/meta-data/local-hostname)
+EOF
+
+}
+
 data "aws_vpc" "main" {
   id = var.vpc_id
 }
@@ -96,6 +106,7 @@ resource "aws_instance" "controllers" {
   private_ip =  cidrhost(var.private_subnet_cidr_block,10+count.index)
   source_dest_check = false
   subnet_id = aws_subnet.private.id
+  user_data = local.hostname_user_data
   vpc_security_group_ids = [aws_security_group.cluster.id]
 
   tags = {
@@ -122,6 +133,7 @@ resource "aws_instance" "workers" {
   private_ip =  cidrhost(var.private_subnet_cidr_block,20+count.index)
   source_dest_check = false
   subnet_id = aws_subnet.private.id
+  user_data = local.hostname_user_data
   vpc_security_group_ids = [aws_security_group.cluster.id]
 
   tags = {
