@@ -49,7 +49,7 @@ resource "aws_subnet" "public" {
   cidr_block = var.public_subnet_cidr_block
   tags = {
     Name = "${var.cluster_name}-public"
-    "kubernetes.io/cluster/kubernetes" = "owned"
+    "kubernetes.io/cluster/${var.cluster_name}" = "owned"
     "kubernetes.io/role/elb" = "1"
   }
   # Establish a way for external modules to depend on the igw

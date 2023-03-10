@@ -4,7 +4,7 @@ kind: ClusterConfiguration
 apiServer:
   extraArgs:
     cloud-provider: external
-clusterName: kubernetes
+clusterName: ${CLUSTER_NAME}
 controlPlaneEndpoint: "${ELB_NAME}:6443"
 controllerManager:
   extraArgs:

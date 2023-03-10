@@ -13,11 +13,13 @@ declare CONTROLLER_NODES
 declare WORKER_NODES
 declare ELB_NAME
 declare CERT_KEY
+declare CLUSTER_NAME
 
 function gatherClusterInfoFromTerraform () {
 
   echo "Gathering infrastructure info"
 
+  CLUSTER_NAME=$(terraform -chdir=./terraform output -json | jq -r '.cluster_name.value')
   ELB_NAME=$(terraform -chdir=./terraform output -json | jq -r '.elb_dns_name.value')
   BASTION_IP=$(terraform -chdir=./terraform output -json | jq -r '.jumpbox_public_ip.value')
 
@@ -57,7 +59,7 @@ function initPrimaryController () {
 
   CERT_KEY=$(ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "sudo kubeadm certs certificate-key")
 
-  ( export ELB_NAME CERT_KEY ; \
+  ( export CLUSTER_NAME ELB_NAME CERT_KEY ; \
     cat kubeadm.config.tmpl | envsubst | ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "cat >kubeadm.config" )
 
   ssh -F ssh_config "${CONTROLLER_NODES[0]}" "bash -s" < ./create-node-patch.sh
@@ -137,7 +139,7 @@ nodeRegistration:
   kubeletExtraArgs:
     cloud-provider: external
 controlPlane:
-  certificateKey: "${CERT_KEY}"    
+  certificateKey: "${CERT_KEY}"
 patches:
   directory: /home/ubuntu/patches
 EOF

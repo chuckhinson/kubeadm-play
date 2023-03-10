@@ -28,7 +28,7 @@ resource "aws_subnet" "private" {
   cidr_block = var.private_subnet_cidr_block
   tags = {
     Name = "${var.cluster_name}-private"
-    "kubernetes.io/cluster/kubernetes" = "owned"
+    "kubernetes.io/cluster/${var.cluster_name}" = "owned"
     "kubernetes.io/role/internal-elb" = "1"
   }
 }
@@ -85,7 +85,7 @@ resource "aws_security_group" "cluster" {
 
   tags = {
     Name = "${var.cluster_name}-internal"
-    "kubernetes.io/cluster/kubernetes" = "owned"
+    "kubernetes.io/cluster/${var.cluster_name}" = "owned"
   }
 }
 
@@ -114,7 +114,7 @@ resource "aws_instance" "controllers" {
 
   tags = {
     Name = "${var.cluster_name}-controller-${count.index}"
-    "kubernetes.io/cluster/kubernetes" = "owned"
+    "kubernetes.io/cluster/${var.cluster_name}" = "owned"
   }
 }
 
@@ -142,8 +142,6 @@ resource "aws_instance" "workers" {
 
   tags = {
     Name = "${var.cluster_name}-worker-${count.index}"
-    "kubernetes.io/cluster/kubernetes" = "owned"
+    "kubernetes.io/cluster/${var.cluster_name}" = "owned"
   }
 }
-
-
