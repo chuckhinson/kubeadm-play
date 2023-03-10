@@ -15,6 +15,69 @@ declare ELB_NAME
 declare CERT_KEY
 declare CLUSTER_NAME
 
+
+declare CLUSTER_INIT_CONFIG_TMPL=$(cat <<'EOF'
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+apiServer:
+  extraArgs:
+    cloud-provider: external
+clusterName: ${CLUSTER_NAME}
+controlPlaneEndpoint: "${ELB_NAME}:6443"
+controllerManager:
+  extraArgs:
+    cloud-provider: external
+kubernetesVersion: v1.26.0 # can use "stable"
+networking:
+  dnsDomain: cluster.local
+  podSubnet: 10.2.128.0/20
+  serviceSubnet: 10.2.64.0/20
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+certificateKey: "${CERT_KEY}"
+nodeRegistration:
+  kubeletExtraArgs:
+    cloud-provider: external
+patches:
+  directory: /home/ubuntu/patches
+EOF
+)
+
+declare CONTROLLER_JOIN_CONFIG_TMPL=$(cat <<'EOF'
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: JoinConfiguration
+discovery:
+  file:
+    kubeConfigPath: /home/ubuntu/kubeconfig
+nodeRegistration:
+  kubeletExtraArgs:
+    cloud-provider: external
+controlPlane:
+  certificateKey: "${CERT_KEY}"
+patches:
+  directory: /home/ubuntu/patches
+EOF
+)
+
+declare WORKER_JOIN_CONFIG_TMPL=$(cat <<'EOF'
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: JoinConfiguration
+discovery:
+  file:
+    kubeConfigPath: /home/ubuntu/kubeconfig
+nodeRegistration:
+  kubeletExtraArgs:
+    cloud-provider: external
+patches:
+  directory: /home/ubuntu/patches
+EOF
+)
+
+
 function gatherClusterInfoFromTerraform () {
 
   echo "Gathering infrastructure info"
@@ -59,14 +122,12 @@ function initPrimaryController () {
 
   CERT_KEY=$(ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "sudo kubeadm certs certificate-key")
 
-  ( export CLUSTER_NAME ELB_NAME CERT_KEY ; \
-    cat kubeadm.config.tmpl | envsubst | ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "cat >kubeadm.config" )
+  local init_config=$(export CLUSTER_NAME ELB_NAME CERT_KEY ; envsubst <<< "$CLUSTER_INIT_CONFIG_TMPL")
+  ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "cat >kubeadm.config"  <<< "$init_config"
 
   ssh -F ssh_config "${CONTROLLER_NODES[0]}" "bash -s" < ./create-node-patch.sh
 
   local cmd="sudo kubeadm init --config ./kubeadm.config --upload-certs"
-  echo "$cmd"
-
   ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "$cmd"
 
 }
@@ -121,6 +182,8 @@ function addSecondaryControllers () {
 
   echo "Adding remaining control plane nodes"
 
+  local join_config="$(export CERT_KEY; envsubst <<< "$CONTROLLER_JOIN_CONFIG_TMPL")"
+
   for ip in "${CONTROLLER_NODES[@]:1}"; do
     echo "Joining controller $ip"
 
@@ -128,21 +191,8 @@ function addSecondaryControllers () {
     scp -F "${SSH_CONFIG_FILE}" "${ADMIN_CONF_FILE}" "${ip}:~/kubeconfig"
 
     # Create kubeadm controller join config file
-    ssh -F ssh_config "$ip" "cat - > ./kubeadm.config" <<EOF
----
-apiVersion: kubeadm.k8s.io/v1beta3
-kind: JoinConfiguration
-discovery:
-  file:
-    kubeConfigPath: /home/ubuntu/kubeconfig
-nodeRegistration:
-  kubeletExtraArgs:
-    cloud-provider: external
-controlPlane:
-  certificateKey: "${CERT_KEY}"
-patches:
-  directory: /home/ubuntu/patches
-EOF
+    ssh -F ssh_config "$ip" "cat - > ./kubeadm.config" <<< "$join_config"
+
     # Create kubletconfig patch file
     ssh -F ssh_config "$ip" "bash -s" < ./create-node-patch.sh
 
@@ -154,7 +204,7 @@ EOF
 
 function addWokerNodes () {
 
-  echo "Adding remaining control plane nodes"
+  echo "Adding worker nodes"
 
   for ip in "${WORKER_NODES[@]}"; do
     echo "Joining worker $ip"
@@ -163,19 +213,8 @@ function addWokerNodes () {
     scp -F "${SSH_CONFIG_FILE}" "${ADMIN_CONF_FILE}" "${ip}:~/kubeconfig"
 
     # Create kubeadm worker join config file
-    ssh -F ssh_config "$ip" "cat - > ./kubeadm.config" <<EOF
----
-apiVersion: kubeadm.k8s.io/v1beta3
-kind: JoinConfiguration
-discovery:
-  file:
-    kubeConfigPath: /home/ubuntu/kubeconfig
-nodeRegistration:
-  kubeletExtraArgs:
-    cloud-provider: external
-patches:
-  directory: /home/ubuntu/patches
-EOF
+    ssh -F ssh_config "$ip" "cat - > ./kubeadm.config" <<< "$WORKER_JOIN_CONFIG_TMPL"
+
     # Create kubadm patch file
     ssh -F ssh_config "$ip" "bash -s" < ./create-node-patch.sh
 
