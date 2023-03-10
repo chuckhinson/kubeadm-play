@@ -42,3 +42,4 @@ terraform.rc
 ssh_config
 known_hosts
 cluster_admin.conf
+tmp/

@@ -57,7 +57,12 @@ function initPrimaryController () {
 
   CERT_KEY=$(ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "sudo kubeadm certs certificate-key")
 
-  local cmd="sudo kubeadm init --kubernetes-version \"1.26.0\" --control-plane-endpoint ${ELB_NAME}:6443 --pod-network-cidr 10.2.128.0/20 --service-cidr 10.2.64.0/20 --certificate-key $CERT_KEY --upload-certs"
+  ( export ELB_NAME CERT_KEY ; \
+    cat kubeadm.config.tmpl | envsubst | ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "cat >kubeadm.config" )
+
+  ssh -F ssh_config "${CONTROLLER_NODES[0]}" "bash -s" < ./create-node-patch.sh
+
+  local cmd="sudo kubeadm init --config ./kubeadm.config --upload-certs"
   echo "$cmd"
 
   ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "$cmd"
@@ -113,28 +118,68 @@ function installCalicoCNI () {
 function addSecondaryControllers () {
 
   echo "Adding remaining control plane nodes"
-  local cmd="sudo kubeadm token create --print-join-command --certificate-key ${CERT_KEY}"
-  local join=$(ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "$cmd")
-  echo "$join"
 
   for ip in "${CONTROLLER_NODES[@]:1}"; do
     echo "Joining controller $ip"
-    ssh -F "${SSH_CONFIG_FILE}" "$ip" "sudo $join"
+
+    # Copy kubeconfig to node
+    scp -F "${SSH_CONFIG_FILE}" "${ADMIN_CONF_FILE}" "${ip}:~/kubeconfig"
+
+    # Create kubeadm controller join config file
+    ssh -F ssh_config "$ip" "cat - > ./kubeadm.config" <<EOF
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: JoinConfiguration
+discovery:
+  file:
+    kubeConfigPath: /home/ubuntu/kubeconfig
+nodeRegistration:
+  kubeletExtraArgs:
+    cloud-provider: external
+controlPlane:
+  certificateKey: "${CERT_KEY}"    
+patches:
+  directory: /home/ubuntu/patches
+EOF
+    # Create kubletconfig patch file
+    ssh -F ssh_config "$ip" "bash -s" < ./create-node-patch.sh
+
+    # join cluster
+    ssh -F "${SSH_CONFIG_FILE}" "$ip" "sudo kubeadm join --config ./kubeadm.config"
   done
 
 }
 
 function addWokerNodes () {
 
-  local cmd="sudo kubeadm token create --print-join-command"
-  local join=$(ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "$cmd")
-  echo "$join"
+  echo "Adding remaining control plane nodes"
 
   for ip in "${WORKER_NODES[@]}"; do
     echo "Joining worker $ip"
-    ssh -F "${SSH_CONFIG_FILE}" "$ip" "sudo $join"
-  done
 
+    # Copy kubeconfig to node
+    scp -F "${SSH_CONFIG_FILE}" "${ADMIN_CONF_FILE}" "${ip}:~/kubeconfig"
+
+    # Create kubeadm worker join config file
+    ssh -F ssh_config "$ip" "cat - > ./kubeadm.config" <<EOF
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: JoinConfiguration
+discovery:
+  file:
+    kubeConfigPath: /home/ubuntu/kubeconfig
+nodeRegistration:
+  kubeletExtraArgs:
+    cloud-provider: external
+patches:
+  directory: /home/ubuntu/patches
+EOF
+    # Create kubadm patch file
+    ssh -F ssh_config "$ip" "bash -s" < ./create-node-patch.sh
+
+    # join cluster
+    ssh -F "${SSH_CONFIG_FILE}" "$ip" "sudo kubeadm join --config ./kubeadm.config"
+  done
 
 }
 
@@ -144,10 +189,11 @@ function main () {
   buildSshConfigFile
   buildKnownHostsFile
   initPrimaryController
-  addSecondaryControllers
   setupKubectl
   waitForElbToBecomeHealthy
   installCalicoCNI
+  ./deploy-aws-cloudprovider.sh
+  addSecondaryControllers
   addWokerNodes  
 }
 
