@@ -77,6 +77,16 @@ patches:
 EOF
 )
 
+declare KUBECONIFG_PATCH_SCRIPT=$(cat <<'EOF'
+INSTANCE_AZ="$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)"
+INSTANCE_ID="$(curl -s http://169.254.169.254/latest/meta-data/instance-id)"
+PROVIDER_ID="aws:///${INSTANCE_AZ}/${INSTANCE_ID}"
+
+mkdir -p patches
+cat > ./patches/kubeletconfiguration.yaml <<< "providerID: $PROVIDER_ID"
+EOF
+)
+
 
 function gatherClusterInfoFromTerraform () {
 
@@ -125,7 +135,7 @@ function initPrimaryController () {
   local init_config=$(export CLUSTER_NAME ELB_NAME CERT_KEY ; envsubst <<< "$CLUSTER_INIT_CONFIG_TMPL")
   ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "cat >kubeadm.config"  <<< "$init_config"
 
-  ssh -F ssh_config "${CONTROLLER_NODES[0]}" "bash -s" < ./create-node-patch.sh
+  ssh -F ssh_config "${CONTROLLER_NODES[0]}" "bash -s" <<< "$KUBECONIFG_PATCH_SCRIPT"
 
   local cmd="sudo kubeadm init --config ./kubeadm.config --upload-certs"
   ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "$cmd"
@@ -194,7 +204,7 @@ function addSecondaryControllers () {
     ssh -F ssh_config "$ip" "cat - > ./kubeadm.config" <<< "$join_config"
 
     # Create kubletconfig patch file
-    ssh -F ssh_config "$ip" "bash -s" < ./create-node-patch.sh
+    ssh -F ssh_config "$ip" "bash -s" <<< "$KUBECONIFG_PATCH_SCRIPT"
 
     # join cluster
     ssh -F "${SSH_CONFIG_FILE}" "$ip" "sudo kubeadm join --config ./kubeadm.config"
@@ -216,7 +226,7 @@ function addWokerNodes () {
     ssh -F ssh_config "$ip" "cat - > ./kubeadm.config" <<< "$WORKER_JOIN_CONFIG_TMPL"
 
     # Create kubadm patch file
-    ssh -F ssh_config "$ip" "bash -s" < ./create-node-patch.sh
+    ssh -F ssh_config "$ip" "bash -s" <<< "$KUBECONIFG_PATCH_SCRIPT"
 
     # join cluster
     ssh -F "${SSH_CONFIG_FILE}" "$ip" "sudo kubeadm join --config ./kubeadm.config"
