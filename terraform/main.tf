@@ -27,6 +27,10 @@ provider "aws" {
   }  
 }
 
+provider "tls" {
+  
+}
+
 variable "cluster_name" {
   nullable = false
   description = "The cluster name - will be used in the names of all resources.  This must be the cluster name as provided to kubespray in order for the cloud-controller manager to work properly"
@@ -149,6 +153,16 @@ data "aws_ami" "ubuntu_containerd" {
 
 }
 
+resource "tls_private_key" "ssh_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "aws_key_pair" "ec2_keypair" {
+  key_name   = var.cluster_name
+  public_key = tls_private_key.ssh_key.public_key_openssh
+}
+
 module "vpc" {
   source = "./modules/vpc"
 
@@ -156,7 +170,7 @@ module "vpc" {
   public_subnet_cidr_block = local.public_subnet_cidr_block
   cluster_name = var.cluster_name
   jumpbox_ami_id = data.aws_ami.ubuntu_jammy.id
-  instance_keypair_name = var.ec2_keypair_name
+  instance_keypair_name = aws_key_pair.ec2_keypair.key_name
   remote_access_cidr_block = var.remote_access_address
   create_nat_gateway = true
 
@@ -176,7 +190,7 @@ module "cluster" {
   private_subnet_cidr_block = local.private_subnet_cidr_block
   cluster_name = var.cluster_name
   node_ami_id = data.aws_ami.ubuntu_containerd.id
-  instance_keypair_name = var.ec2_keypair_name
+  instance_keypair_name = aws_key_pair.ec2_keypair.key_name
   cluster_cidr_block = var.cluster_cidr_block
   controller_instance_count = var.controller_instance_count
   worker_instance_count = var.worker_instance_count
