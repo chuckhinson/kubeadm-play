@@ -105,6 +105,8 @@ function gatherClusterInfoFromTerraform () {
 
 function initPrimaryController () {
 
+  echo "Setting up initial control-plane node"
+
   CERT_KEY=$(ssh -F "${SSH_CONFIG_FILE}" "${CONTROLLER_NODES[0]}" "sudo kubeadm certs certificate-key")
 
   local init_config=$(export CLUSTER_NAME ELB_NAME CERT_KEY ; envsubst <<< "$CLUSTER_INIT_CONFIG_TMPL")
