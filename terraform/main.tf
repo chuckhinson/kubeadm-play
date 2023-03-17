@@ -27,9 +27,9 @@ provider "aws" {
   }  
 }
 
-provider "tls" {
-  
-}
+provider "tls" {}
+
+provider "null" {}
 
 variable "cluster_name" {
   nullable = false
@@ -58,8 +58,25 @@ variable "remote_access_address" {
 }
 
 variable "node_vpc_cidr_block" {
+  nullable = false
+  type = string
   default = "10.2.0.0/16"
-  description = "This is the CIDR block for the VPC where the cluster will live"
+  description = "This is the CIDR block for the VPC where the cluster will live.  If not specified, the vpc_id must be specified.  Ignored when vpc_id is specified"
+  validation {
+    condition = (length(var.node_vpc_cidr_block) == 0) || (length(var.node_vpc_cidr_block) >= 9)
+    error_message = "vpc_cidr_block does not appear to be in CIDR format of a.b.c.d/n"
+  }
+}
+
+variable "vpc_id" {
+  nullable = false
+  type = string
+  default = ""
+  description = "Id of an existing VPC to be used.  If not specified, vpc_cidr_block must be specified"
+  validation {
+    condition = (length(var.vpc_id) == 0) || (length(var.vpc_id) > 4 && substr(var.vpc_id, 0, 4) == "vpc-")
+    error_message = "vpc_id is not null and does not appear to be a valid vpc id"
+  }
 }
 
 variable "cluster_cidr_block" {
@@ -92,10 +109,13 @@ variable "node_ami_owner_id" {
   EOT
 }
 
-
-locals {
-  public_subnet_cidr_block = cidrsubnet(var.node_vpc_cidr_block,8,1)
-  private_subnet_cidr_block = cidrsubnet(var.node_vpc_cidr_block,8,2)
+resource null_resource "precheck" {
+  lifecycle {
+    precondition {
+      condition = var.vpc_id != "" || (var.vpc_id == "" && var.node_vpc_cidr_block != "")
+      error_message = "If vpc_id is not specificed, cidr_block must be specified"
+    }
+  }
 }
 
 data "aws_caller_identity" "current" {}
@@ -167,13 +187,15 @@ module "vpc" {
   source = "./modules/vpc"
 
   vpc_cidr_block = var.node_vpc_cidr_block
-  public_subnet_cidr_block = local.public_subnet_cidr_block
+  vpc_id = var.vpc_id
   cluster_name = var.cluster_name
   jumpbox_ami_id = data.aws_ami.ubuntu_jammy.id
   instance_keypair_name = aws_key_pair.ec2_keypair.key_name
   remote_access_cidr_block = var.remote_access_address
   create_nat_gateway = true
 
+  # Make sure vpc_id and node_cidr_block are good before we try to use them
+  depends_on = [null_resource.precheck]
 }
 
 module "iam" {
@@ -187,7 +209,7 @@ module "cluster" {
 
   vpc_id = module.vpc.vpc_id
   nat_gateway_id = module.vpc.nat_gateway_id
-  private_subnet_cidr_block = local.private_subnet_cidr_block
+  private_subnet_cidr_block = cidrsubnet(module.vpc.vpc_cidr_block,8,2)
   cluster_name = var.cluster_name
   node_ami_id = data.aws_ami.ubuntu_containerd.id
   instance_keypair_name = aws_key_pair.ec2_keypair.key_name

@@ -9,18 +9,38 @@ terraform {
   }
 }
 
+#
+# NOTE: we create either the data aws_vpc or the resource aws_vpc, but not both
+# In order to make it easy on the rest of the code, we'll define locals that have
+# the correct values regardles of we're using an existing vpc or no
+#
+locals {
+  vpc_id         = var.vpc_id == "" ? aws_vpc.main[0].id : var.vpc_id
+  vpc_cidr_block = var.vpc_id == "" ? var.vpc_cidr_block : data.aws_vpc.existing[0].cidr_block
+  public_subnet_cidr_block = cidrsubnet(local.vpc_cidr_block,8,1)
+}
+
+data "aws_vpc" "existing" {
+  # only create if we're using an existin vpc
+  count = length(var.vpc_id) > 0 ? 1 : 0
+  id = var.vpc_id
+}
 
 resource "aws_vpc" "main" {
+  # only create if we're NOT using an existing vpc
+  count = var.vpc_id == "" ? 1 : 0
+
   cidr_block = var.vpc_cidr_block
   enable_dns_support = true
   enable_dns_hostnames = true
   tags = {
     Name = var.cluster_name
   }
+
 }
 
 resource "aws_internet_gateway" "main" {
-  vpc_id = aws_vpc.main.id
+  vpc_id = local.vpc_id
   tags = {
     Name = var.cluster_name
   }
@@ -45,8 +65,8 @@ resource "aws_eip" "main" {
 }
 
 resource "aws_subnet" "public" {
-  vpc_id = aws_vpc.main.id
-  cidr_block = var.public_subnet_cidr_block
+  vpc_id = local.vpc_id
+  cidr_block = local.public_subnet_cidr_block
   tags = {
     Name = "${var.cluster_name}-public"
     "kubernetes.io/cluster/${var.cluster_name}" = "owned"
@@ -58,7 +78,7 @@ resource "aws_subnet" "public" {
 }
 
 resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.main.id
+  vpc_id = local.vpc_id
 
   tags = {
     Name = "${var.cluster_name}-public"
@@ -79,7 +99,7 @@ resource "aws_route_table_association" "public" {
 resource "aws_security_group" "main" {
   name        = "${var.cluster_name}-remote"
   description = "Allow remote access to cluster"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = local.vpc_id
 
   ingress {
     description      = "ssh from mgmt server"
@@ -138,7 +158,7 @@ resource "aws_instance" "jumpbox" {
   }
   instance_type = "t3.micro"
   key_name = var.instance_keypair_name
-  private_ip =  cidrhost(var.public_subnet_cidr_block,10)
+  private_ip =  cidrhost(local.public_subnet_cidr_block,10)
   source_dest_check = false
   subnet_id = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.main.id]

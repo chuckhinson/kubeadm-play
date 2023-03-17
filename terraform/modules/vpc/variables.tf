@@ -1,19 +1,36 @@
 variable "vpc_cidr_block" {
   nullable = false
   type = string
-  description = "This is the CIDR block for the VPC"
+  default = ""
+  description = <<EOT
+  This is the CIDR block for the VPC.  If not specified, vpc_id must be specified.
+  Ignored when vpc_id is specified
+EOT
+  validation {
+    condition = (length(var.vpc_cidr_block) == 0) || (length(var.vpc_cidr_block) >= 9)
+    error_message = "vpc_cidr_block does not appear to be in CIDR format of a.b.c.d/n"
+  }
 }
 
-variable "public_subnet_cidr_block" {
+variable "vpc_id" {
   nullable = false
   type = string
-  description = "This is the CIDR block for the public subnet"
+  default = ""
+  description = "Id of and existing VPC to be used.  If not spedified, vpc_cidr_block must be specified"
+  validation {
+    condition = (length(var.vpc_id) == 0) || (length(var.vpc_id) > 4 && substr(var.vpc_id, 0, 4) == "vpc-")
+    error_message = "vpc_id is not empty and does not appear to be a valid vpc id"
+  }
 }
 
 variable "cluster_name" {
   nullable = false
   type = string
-  description = "The cluster name - will be used in the names of all resources.  This must be the cluster name as provided to kubespray in order for the cloud-controller manager to work properly"
+  description = <<EOT
+  The cluster name - will be used in the names of all resources.
+  This must be the cluster name as provided to kubespray in order
+  for the cloud-controller manager to work properly
+EOT
 }
 
 variable "jumpbox_ami_id" {
@@ -36,5 +53,8 @@ variable "create_nat_gateway" {
   nullable = true
   default = false
   type = bool
-  description = "boolean indicating whether a NAT gateway (with corresponding EIP) should be created in the public subnet"
+  description = <<EOT
+  boolean indicating whether a NAT gateway (with corresponding EIP) should
+  be created in the public subnet
+EOT
 }

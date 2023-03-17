@@ -1,5 +1,13 @@
+# This will always contain the correct vpc id regardless of whether we're using an
+# existing vpc or creating a new vpc
 output "vpc_id" {
-  value = aws_vpc.main.id
+  value = local.vpc_id
+}
+
+# This will always contain the correct vpc cidr block regardless of whether we're using
+# an existing vpc or creating a new vpc
+output "vpc_cidr_block" {
+  value = local.vpc_cidr_block
 }
 
 output "public_subnet_id" {
