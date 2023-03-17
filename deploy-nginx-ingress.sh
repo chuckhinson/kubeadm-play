@@ -12,7 +12,11 @@ set -euo pipefail
 export KUBECONFIG="$(pwd)/cluster_admin.conf"
 
 mkdir -p ./tmp
-(cd ./tmp; git clone https://github.com/nginxinc/kubernetes-ingress.git --branch v3.0.2)
+if [ -d ./tmp/kubernetes-ingress/deployments ] ; then
+  :
+else
+  (cd ./tmp; git clone https://github.com/nginxinc/kubernetes-ingress.git --branch v3.0.2)
+fi
 
 declare MANIFESTS_DIR="$(pwd)/tmp/kubernetes-ingress/deployments"
 
