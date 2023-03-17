@@ -86,7 +86,7 @@ You can also now use `ssh -F ssh_config 10.2.2.x` to ssh into your cluster nodes
   - `./deploy-nginx-ingress.sh`
   - Select host name and update configuration
       - `nslookup $(terraform -chdir=./terraform output -json | jq -r '.elb_dns_name.value')`
-      - `vi /etc/hots`       # map elb IP to selected hostname
+      - `vi /etc/hosts`      # map elb IP to selected hostname
       - `vi dashboard.yaml`  # update hostname (2 places)
   - Create the dashboard ssl certficate secret dashboard-tls in the kubernetes dashboard namespace
       - `kubectl create secret tls dashboard-tls -n kubernetes-dashboard --key="$KEY_FILE" --cert="$CERT_FILE"`
